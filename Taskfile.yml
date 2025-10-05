@@ -1,0 +1,38 @@
+version: '3'
+
+tasks:
+  test-integration:
+    desc: "Run integration tests with running server"
+    cmds:
+      - task: start-server
+      - task: wait-for-server
+      - go test -v -count=1 ./tests/...
+      - task: stop-server
+
+  wait-for-server:
+    desc: "Wait for server to be ready"
+    cmds:
+      - |
+        for i in {1..30}; do
+          if curl -f http://localhost:8080/health >/dev/null 2>&1; then
+            echo "Server is ready!"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "Server failed to start"
+            exit 1
+          fi
+          sleep 0.1
+        done
+
+  start-server:
+    desc: "Start wasmorph server"
+    cmds:
+      - task: stop-server
+      - go build -o /tmp/wasmorph-server cmd/server/main.go
+      - nohup /tmp/wasmorph-server > /tmp/wasmorph-server.log 2>&1 &
+
+  stop-server:
+    desc: "Stop wasmorph server"
+    cmds:
+      - pkill -f "/tmp/wasmorph-server" || true
