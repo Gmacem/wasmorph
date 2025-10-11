@@ -3,12 +3,14 @@ package wasm
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	extism "github.com/extism/go-sdk"
 )
 
 type Runtime struct {
 	plugin *extism.Plugin
+	mu     sync.Mutex
 }
 
 func NewRuntime(wasmBytes []byte) (*Runtime, error) {
@@ -33,6 +35,9 @@ func NewRuntime(wasmBytes []byte) (*Runtime, error) {
 }
 
 func (r *Runtime) ExecuteTransform(input []byte) ([]byte, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	_, result, err := r.plugin.Call("TransformWrapper", input)
 	if err != nil {
 		return nil, fmt.Errorf("transform execution failed: %w", err)

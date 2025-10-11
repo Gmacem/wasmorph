@@ -108,7 +108,19 @@ func (a *AuthService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Username and password required", http.StatusBadRequest)
 		return
 	}
-	userID := username
+
+	user, err := a.queries.GetUserByUsername(r.Context(), username)
+	if err != nil {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	if user.PasswordHash != password {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	userID := fmt.Sprintf("%d", user.ID)
 	jwtToken, err := a.GenerateJWT(userID)
 	if err != nil {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
@@ -117,9 +129,10 @@ func (a *AuthService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
 		Value:    jwtToken,
+		Path:     "/",
 		HttpOnly: true,
 		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   86400,
 	})
 	w.Header().Set("Content-Type", "application/json")

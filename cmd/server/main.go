@@ -44,7 +44,12 @@ func main() {
 
 	// Create services with shared connection pool
 	authService := auth.NewAuthService(pool, config)
-	wasmService := wasm.NewService(pool)
+	cache := wasm.NewRistrettoCache(&wasm.RuntimeCacheConfig{
+		MaxCost:     100 << 20,
+		NumCounters: 1000,
+		BufferItems: 64,
+	})
+	wasmService := wasm.NewService(pool, cache)
 	rulesHandler := handlers.NewRulesHandler(wasmService)
 
 	r := chi.NewRouter()
@@ -55,10 +60,6 @@ func main() {
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	}))
-
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Wasmorph API"))
-	})
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -72,9 +73,13 @@ func main() {
 
 		r.Post("/rules", rulesHandler.CreateRule)
 		r.Get("/rules", rulesHandler.ListRules)
+		r.Get("/rules/{name}", rulesHandler.GetRule)
 		r.Post("/rules/{name}/execute", rulesHandler.ExecuteRule)
 		r.Delete("/rules/{name}", rulesHandler.DeleteRule)
 	})
+
+	fileServer := http.FileServer(http.Dir("web/static"))
+	r.Handle("/*", http.StripPrefix("/", fileServer))
 
 	port := os.Getenv("PORT")
 	if port == "" {

@@ -92,6 +92,21 @@ func (h *RulesHandler) ExecuteRule(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{"result": resultData})
 }
 
+func (h *RulesHandler) GetRule(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+	userID := r.Header.Get("X-User-ID")
+	rule, err := h.wasmService.GetRule(r.Context(), userID, name)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(rule)
+}
+
 func (h *RulesHandler) DeleteRule(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	userID := r.Header.Get("X-User-ID")
