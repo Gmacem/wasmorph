@@ -1,0 +1,23 @@
+{{define "content"}}
+<div class="card" style="max-width: 400px; margin: 0 auto;">
+    <h2 style="margin: 0 0 30px 0; font-size: 28px;">Login</h2>
+    
+    {{if .Error}}
+        <div class="error">{{.Error}}</div>
+    {{end}}
+    
+    <form method="POST" action="/login">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required class="form-control">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required class="form-control">
+        </div>
+        
+        <button type="submit" class="btn" style="width: 100%;">Login</button>
+    </form>
+</div>
+{{end}}

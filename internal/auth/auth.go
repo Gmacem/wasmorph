@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -8,20 +9,28 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Gmacem/wasmorph/internal/sql"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/lib/pq"
 )
 
-type AuthService struct {
-	jwtSecret    string
-	apiKeys      map[string]string
-	userSessions map[string]string
+type Config struct {
+	DatabaseURL string
+	JWTSecret   string
 }
 
-func NewAuthService() *AuthService {
+type AuthService struct {
+	config       Config
+	userSessions map[string]string
+	queries      *sql.Queries
+}
+
+func NewAuthService(pool *pgxpool.Pool, config Config) *AuthService {
 	return &AuthService{
-		jwtSecret:    "your-secret-key-change-in-production",
-		apiKeys:      make(map[string]string),
+		config:       config,
 		userSessions: make(map[string]string),
+		queries:      sql.New(pool),
 	}
 }
 
@@ -29,7 +38,6 @@ func (a *AuthService) GenerateAPIKey(userID string) string {
 	bytes := make([]byte, 16)
 	rand.Read(bytes)
 	apiKey := hex.EncodeToString(bytes)
-	a.apiKeys[apiKey] = userID
 	return apiKey
 }
 
@@ -40,15 +48,15 @@ func (a *AuthService) GenerateJWT(userID string) (string, error) {
 		"iat":     time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(a.jwtSecret))
+	return token.SignedString([]byte(a.config.JWTSecret))
 }
 
 func (a *AuthService) ValidateJWT(tokenString string) (string, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(a.jwtSecret), nil
+		return []byte(a.config.JWTSecret), nil
 	})
 	if err != nil {
 		return "", err
@@ -61,23 +69,22 @@ func (a *AuthService) ValidateJWT(tokenString string) (string, error) {
 	return "", fmt.Errorf("invalid token")
 }
 
-func (a *AuthService) ValidateAPIKey(apiKey string) (string, bool) {
-	userID, exists := a.apiKeys[apiKey]
-	return userID, exists
+func (a *AuthService) ValidateAPIKey(apiKey string) (int32, bool) {
+	userID, err := a.queries.ValidateAPIKey(context.Background(), apiKey)
+	if err != nil {
+		return 0, false
+	}
+
+	return userID, true
 }
 
 func (a *AuthService) AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if auth := r.Header.Get("Authorization"); auth != "" {
-			if strings.HasPrefix(auth, "Bearer ") {
-				token := strings.TrimPrefix(auth, "Bearer ")
-				if userID, err := a.ValidateJWT(token); err == nil {
-					r.Header.Set("X-User-ID", userID)
-					next.ServeHTTP(w, r)
-					return
-				}
-				if userID, exists := a.ValidateAPIKey(token); exists {
-					r.Header.Set("X-User-ID", userID)
+			if after, ok := strings.CutPrefix(auth, "Bearer "); ok {
+				apiKey := after
+				if userID, exists := a.ValidateAPIKey(apiKey); exists {
+					r.Header.Set("X-User-ID", fmt.Sprintf("%d", userID))
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -107,7 +114,6 @@ func (a *AuthService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}
-	apiKey := a.GenerateAPIKey(userID)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
 		Value:    jwtToken,
@@ -117,5 +123,5 @@ func (a *AuthService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   86400,
 	})
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"api_key": "%s", "access_token": "%s"}`, apiKey, jwtToken)
+	fmt.Fprintf(w, `{"access_token": "%s"}`, jwtToken)
 }

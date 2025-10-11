@@ -1,0 +1,65 @@
+{{define "content"}}
+<div class="card">
+    <h2 style="margin: 0 0 10px 0; font-size: 28px;">Go Script Editor</h2>
+    <p style="color: #666; margin: 0 0 30px 0;">Write your Go function that accepts and returns JSON</p>
+    
+    <form method="POST" action="/scripts" id="scriptForm">
+        <div class="form-group">
+            <label for="name">Script Name</label>
+            <input type="text" id="name" name="name" required class="form-control" placeholder="my-awesome-script">
+        </div>
+        
+        <div class="form-group">
+            <label for="code">Go Code</label>
+            <textarea id="code" name="code" rows="20" required class="form-control code" 
+                      placeholder="package main
+
+import (
+    &quot;encoding/json&quot;
+    &quot;fmt&quot;
+)
+
+func main() {
+    result := map[string]interface{}{
+        &quot;message&quot;: &quot;Hello from WASM!&quot;,
+    }
+    
+    jsonData, _ := json.Marshal(result)
+    fmt.Print(string(jsonData))
+}">{{.Code}}</textarea>
+        </div>
+        
+        <div class="flex">
+            <button type="submit" class="btn">Save Script</button>
+            <button type="button" id="testBtn" class="btn btn-success">Test Script</button>
+        </div>
+    </form>
+    
+    <div id="testResult" style="margin-top: 30px; display: none;">
+        <h3 style="margin: 0 0 15px 0; font-size: 20px;">Test Result</h3>
+        <div id="testOutput" class="code"></div>
+    </div>
+</div>
+
+<script>
+document.getElementById('testBtn').addEventListener('click', function() {
+    const formData = new FormData(document.getElementById('scriptForm'));
+    const testData = prompt('Enter test JSON data:', '{"input": "test"}');
+    
+    if (testData) {
+        // Mock test execution for demo
+        setTimeout(() => {
+            const mockResult = {
+                success: true,
+                output: "Mock test result",
+                input: JSON.parse(testData),
+                code: formData.get('code').substring(0, 50) + "...",
+                timestamp: new Date().toISOString()
+            };
+            document.getElementById('testOutput').textContent = JSON.stringify(mockResult, null, 2);
+            document.getElementById('testResult').style.display = 'block';
+        }, 800);
+    }
+});
+</script>
+{{end}}

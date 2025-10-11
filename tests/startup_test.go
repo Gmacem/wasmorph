@@ -6,7 +6,6 @@ import (
 )
 
 func TestIntegration(t *testing.T) {
-	// Test against running server
 	baseURL := "http://localhost:8080"
 
 	t.Run("Health check", func(t *testing.T) {
