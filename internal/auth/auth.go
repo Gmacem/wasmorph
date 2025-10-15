@@ -4,13 +4,16 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Gmacem/wasmorph/internal/sql"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 )
@@ -137,4 +140,73 @@ func (a *AuthService) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	})
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, `{"access_token": "%s"}`, jwtToken)
+}
+
+func (a *AuthService) RegisterHandler(w http.ResponseWriter, r *http.Request) {
+	username := r.FormValue("username")
+	email := r.FormValue("email")
+	password := r.FormValue("password")
+
+	if username == "" || email == "" || password == "" {
+		http.Error(w, "Username, email and password required", http.StatusBadRequest)
+		return
+	}
+
+	user, err := a.queries.CreateUser(r.Context(), sql.CreateUserParams{
+		Username:     username,
+		Email:        pgtype.Text{String: email, Valid: true},
+		PasswordHash: password,
+		IsActive:     pgtype.Bool{Bool: true, Valid: true},
+	})
+	if err != nil {
+		http.Error(w, "User already exists", http.StatusConflict)
+		return
+	}
+
+	userID := fmt.Sprintf("%d", user.ID)
+	jwtToken, err := a.GenerateJWT(userID)
+	if err != nil {
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    jwtToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"access_token": "%s"}`, jwtToken)
+}
+
+func (a *AuthService) MeHandler(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("X-User-ID")
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userIDInt, err := strconv.ParseInt(userID, 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+
+	row, err := a.queries.GetUserByID(r.Context(), int32(userIDInt))
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":       row.ID,
+		"username": row.Username,
+		"email":    row.Email.String,
+	})
 }

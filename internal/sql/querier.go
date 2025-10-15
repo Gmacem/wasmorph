@@ -6,15 +6,19 @@ package sql
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
 	CreateAPIKey(ctx context.Context, arg CreateAPIKeyParams) (WasmorphApiKey, error)
 	CreateRule(ctx context.Context, arg CreateRuleParams) (WasmorphRule, error)
-	CreateUser(ctx context.Context, arg CreateUserParams) (WasmorphUser, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
 	DeleteRule(ctx context.Context, arg DeleteRuleParams) error
 	GetRuleByNameAndUser(ctx context.Context, arg GetRuleByNameAndUserParams) (WasmorphRule, error)
-	GetUserByUsername(ctx context.Context, username string) (WasmorphUser, error)
+	GetUserByEmail(ctx context.Context, email pgtype.Text) (GetUserByEmailRow, error)
+	GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, error)
+	GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error)
 	ListRulesByUser(ctx context.Context, userID int32) ([]ListRulesByUserRow, error)
 	UpdateRule(ctx context.Context, arg UpdateRuleParams) (WasmorphRule, error)
 	ValidateAPIKey(ctx context.Context, apiKey string) (int32, error)

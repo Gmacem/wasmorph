@@ -79,23 +79,40 @@ func (q *Queries) CreateRule(ctx context.Context, arg CreateRuleParams) (Wasmorp
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO wasmorph.users (username, password_hash, is_active)
-VALUES ($1, $2, $3)
-RETURNING id, username, password_hash, created_at, updated_at, is_active
+INSERT INTO wasmorph.users (username, email, password_hash, is_active)
+VALUES ($1, $2, $3, $4)
+RETURNING id, username, email, password_hash, created_at, updated_at, is_active
 `
 
 type CreateUserParams struct {
 	Username     string      `json:"username"`
+	Email        pgtype.Text `json:"email"`
 	PasswordHash string      `json:"password_hash"`
 	IsActive     pgtype.Bool `json:"is_active"`
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (WasmorphUser, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Username, arg.PasswordHash, arg.IsActive)
-	var i WasmorphUser
+type CreateUserRow struct {
+	ID           int32            `json:"id"`
+	Username     string           `json:"username"`
+	Email        pgtype.Text      `json:"email"`
+	PasswordHash string           `json:"password_hash"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
+	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
+	IsActive     pgtype.Bool      `json:"is_active"`
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Username,
+		arg.Email,
+		arg.PasswordHash,
+		arg.IsActive,
+	)
+	var i CreateUserRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.Email,
 		&i.PasswordHash,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -147,19 +164,92 @@ func (q *Queries) GetRuleByNameAndUser(ctx context.Context, arg GetRuleByNameAnd
 	return i, err
 }
 
-const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password_hash, created_at, updated_at, is_active 
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, username, password_hash, email, created_at, updated_at, is_active 
 FROM wasmorph.users 
-WHERE username = $1 AND is_active = true
+WHERE email = $1 AND is_active = true
 `
 
-func (q *Queries) GetUserByUsername(ctx context.Context, username string) (WasmorphUser, error) {
-	row := q.db.QueryRow(ctx, getUserByUsername, username)
-	var i WasmorphUser
+type GetUserByEmailRow struct {
+	ID           int32            `json:"id"`
+	Username     string           `json:"username"`
+	PasswordHash string           `json:"password_hash"`
+	Email        pgtype.Text      `json:"email"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
+	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
+	IsActive     pgtype.Bool      `json:"is_active"`
+}
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email pgtype.Text) (GetUserByEmailRow, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
 		&i.PasswordHash,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsActive,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, username, password_hash, email, created_at, updated_at, is_active 
+FROM wasmorph.users 
+WHERE id = $1 AND is_active = true
+`
+
+type GetUserByIDRow struct {
+	ID           int32            `json:"id"`
+	Username     string           `json:"username"`
+	PasswordHash string           `json:"password_hash"`
+	Email        pgtype.Text      `json:"email"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
+	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
+	IsActive     pgtype.Bool      `json:"is_active"`
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i GetUserByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsActive,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, username, password_hash, email, created_at, updated_at, is_active 
+FROM wasmorph.users 
+WHERE username = $1 AND is_active = true
+`
+
+type GetUserByUsernameRow struct {
+	ID           int32            `json:"id"`
+	Username     string           `json:"username"`
+	PasswordHash string           `json:"password_hash"`
+	Email        pgtype.Text      `json:"email"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
+	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
+	IsActive     pgtype.Bool      `json:"is_active"`
+}
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
+	row := q.db.QueryRow(ctx, getUserByUsername, username)
+	var i GetUserByUsernameRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
+		&i.Email,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.IsActive,

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Wasmorph</title>
+    <title>Register - Wasmorph</title>
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
@@ -107,30 +107,34 @@
         <div class="logo">
             <h1>Wasmorph</h1>
         </div>
-        <h2>Login</h2>
+        <h2>Register</h2>
         <div id="error" class="error" style="display: none;"></div>
-        <form id="loginForm">
+        <form id="registerForm">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username" required class="form-control">
             </div>
             <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required class="form-control">
+            </div>
+            <div class="form-group">
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" required class="form-control">
             </div>
-            <button type="submit" class="btn">Login</button>
+            <button type="submit" class="btn">Register</button>
         </form>
         <div class="link">
-            Don't have an account? <a href="/register.html">Register</a>
+            Already have an account? <a href="/login.html">Login</a>
         </div>
     </div>
 
     <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
         try {
-            const resp = await fetch('/api/v1/auth/login', {
+            const resp = await fetch('/api/v1/auth/register', {
                 method: 'POST',
                 credentials: 'include',
                 body: formData

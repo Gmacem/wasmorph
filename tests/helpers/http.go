@@ -86,6 +86,26 @@ func (c *HTTPClient) DeleteRule(apiKey, ruleName string) (*http.Response, error)
 	return c.client.Do(req)
 }
 
+func (c *HTTPClient) Register(username, email, password string) (*http.Response, error) {
+	payload := fmt.Sprintf("username=%s&email=%s&password=%s", username, email, password)
+	req, err := http.NewRequest("POST", c.baseURL+"/api/v1/auth/register", bytes.NewBufferString(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return c.client.Do(req)
+}
+
+func (c *HTTPClient) Login(username, password string) (*http.Response, error) {
+	payload := fmt.Sprintf("username=%s&password=%s", username, password)
+	req, err := http.NewRequest("POST", c.baseURL+"/api/v1/auth/login", bytes.NewBufferString(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return c.client.Do(req)
+}
+
 func (c *HTTPClient) HealthCheck() (*http.Response, error) {
 	req, err := http.NewRequest("GET", c.baseURL+"/health", nil)
 	if err != nil {

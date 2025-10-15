@@ -3,14 +3,24 @@ SELECT user_id FROM wasmorph.api_keys
 WHERE api_key = $1 AND is_active = true;
 
 -- name: GetUserByUsername :one
-SELECT id, username, password_hash, created_at, updated_at, is_active 
+SELECT id, username, password_hash, email, created_at, updated_at, is_active 
 FROM wasmorph.users 
 WHERE username = $1 AND is_active = true;
 
+-- name: GetUserByEmail :one
+SELECT id, username, password_hash, email, created_at, updated_at, is_active 
+FROM wasmorph.users 
+WHERE email = $1 AND is_active = true;
+
+-- name: GetUserByID :one
+SELECT id, username, password_hash, email, created_at, updated_at, is_active 
+FROM wasmorph.users 
+WHERE id = $1 AND is_active = true;
+
 -- name: CreateUser :one
-INSERT INTO wasmorph.users (username, password_hash, is_active)
-VALUES ($1, $2, $3)
-RETURNING id, username, password_hash, created_at, updated_at, is_active;
+INSERT INTO wasmorph.users (username, email, password_hash, is_active)
+VALUES ($1, $2, $3, $4)
+RETURNING id, username, email, password_hash, created_at, updated_at, is_active;
 
 -- name: CreateAPIKey :one
 INSERT INTO wasmorph.api_keys (api_key, user_id, is_active)

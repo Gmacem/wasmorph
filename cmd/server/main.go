@@ -67,10 +67,12 @@ func main() {
 	})
 
 	r.Post("/api/v1/auth/login", authService.LoginHandler)
+	r.Post("/api/v1/auth/register", authService.RegisterHandler)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(authService.AuthMiddleware)
 
+		r.Get("/auth/me", authService.MeHandler)
 		r.Post("/rules", rulesHandler.CreateRule)
 		r.Get("/rules", rulesHandler.ListRules)
 		r.Get("/rules/{name}", rulesHandler.GetRule)

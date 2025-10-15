@@ -52,7 +52,6 @@ func (suite *AuthTestSuite) TestAPIKeyAuthentication() {
 	require.NoError(suite.T(), err)
 	defer resp.Body.Close()
 
-	// Debug: print response body
 	bodyBytes, _ := io.ReadAll(resp.Body)
 	suite.T().Logf("Response status: %d", resp.StatusCode)
 	suite.T().Logf("Response body: %s", string(bodyBytes))
@@ -71,6 +70,60 @@ func (suite *AuthTestSuite) TestAPIKeyAuthenticationInvalid() {
 	defer resp.Body.Close()
 
 	assert.Equal(suite.T(), http.StatusUnauthorized, resp.StatusCode)
+}
+
+func (suite *AuthTestSuite) TestUserRegistrationAndLogin() {
+	suite.dbClient.CleanupAll()
+
+	newUsername := "newuser"
+	newEmail := "newuser@example.com"
+	newPassword := "password123"
+
+	resp, err := suite.httpClient.Register(newUsername, newEmail, newPassword)
+	require.NoError(suite.T(), err)
+	defer resp.Body.Close()
+
+	assert.Equal(suite.T(), http.StatusOK, resp.StatusCode)
+
+	var registerResponse map[string]string
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	err = json.Unmarshal(bodyBytes, &registerResponse)
+	require.NoError(suite.T(), err)
+	assert.NotEmpty(suite.T(), registerResponse["access_token"])
+
+	user, err := suite.dbClient.GetUserByUsername(newUsername)
+	require.NoError(suite.T(), err)
+	assert.Equal(suite.T(), newUsername, user.Username)
+	assert.Equal(suite.T(), newEmail, user.Email)
+
+	loginResp, err := suite.httpClient.Login(newUsername, newPassword)
+	require.NoError(suite.T(), err)
+	defer loginResp.Body.Close()
+
+	assert.Equal(suite.T(), http.StatusOK, loginResp.StatusCode)
+}
+
+func (suite *AuthTestSuite) TestLoginWithInvalidCredentials() {
+	suite.dbClient.CleanupAll()
+
+	username := "testuser"
+	email := "test@example.com"
+	password := "correct_password"
+
+	resp, err := suite.httpClient.Register(username, email, password)
+	require.NoError(suite.T(), err)
+	resp.Body.Close()
+	require.Equal(suite.T(), http.StatusOK, resp.StatusCode)
+
+	wrongPasswordResp, err := suite.httpClient.Login(username, "wrong_password")
+	require.NoError(suite.T(), err)
+	defer wrongPasswordResp.Body.Close()
+	assert.Equal(suite.T(), http.StatusUnauthorized, wrongPasswordResp.StatusCode)
+
+	wrongUsernameResp, err := suite.httpClient.Login("wrong_username", password)
+	require.NoError(suite.T(), err)
+	defer wrongUsernameResp.Body.Close()
+	assert.Equal(suite.T(), http.StatusUnauthorized, wrongUsernameResp.StatusCode)
 }
 
 func TestAuthTestSuite(t *testing.T) {

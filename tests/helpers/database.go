@@ -105,8 +105,20 @@ func (dc *DatabaseClient) CleanupRules() error {
 	return err
 }
 
+func (dc *DatabaseClient) GetUserByUsername(username string) (*User, error) {
+	var user User
+	err := dc.db.QueryRow(`
+		SELECT id, username, COALESCE(email, '') as email, password_hash, created_at, updated_at, is_active 
+		FROM wasmorph.users 
+		WHERE username = $1`,
+		username).Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt, &user.IsActive)
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (dc *DatabaseClient) VerifyUserAndAPIKey(username, apiKey string) error {
-	// Check if user exists
 	var userCount int
 	err := dc.db.QueryRow("SELECT COUNT(*) FROM wasmorph.users WHERE username = $1", username).Scan(&userCount)
 	if err != nil {
@@ -116,7 +128,6 @@ func (dc *DatabaseClient) VerifyUserAndAPIKey(username, apiKey string) error {
 		return fmt.Errorf("user %s not found in database", username)
 	}
 
-	// Check if API key exists
 	var apiKeyCount int
 	err = dc.db.QueryRow("SELECT COUNT(*) FROM wasmorph.api_keys WHERE api_key = $1", apiKey).Scan(&apiKeyCount)
 	if err != nil {
@@ -127,4 +138,14 @@ func (dc *DatabaseClient) VerifyUserAndAPIKey(username, apiKey string) error {
 	}
 
 	return nil
+}
+
+type User struct {
+	ID           int32
+	Username     string
+	Email        string
+	PasswordHash string
+	CreatedAt    interface{}
+	UpdatedAt    interface{}
+	IsActive     bool
 }
